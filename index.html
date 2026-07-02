@@ -425,6 +425,44 @@ for(let i=0;i<700;i++){pPos[i*3]=(Math.random()-.5)*65;pPos[i*3+1]=(Math.random(
 pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
 const particles=new THREE.Points(pGeo,new THREE.PointsMaterial({color:0x3B82F6,size:0.07,transparent:true,opacity:0.45}));
 scene.add(particles);
+
+// Logo particle cloud — samples the logo image and rebuilds it as floating 3D points
+const logoParticlesGroup = new THREE.Group();
+scene.add(logoParticlesGroup);
+function buildLogoParticles(imgEl){
+  const w = 130, h = 130;
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const ctx = off.getContext('2d');
+  ctx.drawImage(imgEl, 0, 0, w, h);
+  const data = ctx.getImageData(0,0,w,h).data;
+  const positions = [], colors = [];
+  const scale = 0.1;
+  for (let y=0;y<h;y++){
+    for (let x=0;x<w;x++){
+      const idx=(y*w+x)*4;
+      const a=data[idx+3];
+      if (a>120){
+        positions.push((x-w/2)*scale,(h/2-y)*scale,(Math.random()-0.5)*1.4);
+        colors.push(data[idx]/255,data[idx+1]/255,data[idx+2]/255);
+      }
+    }
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+  const mat=new THREE.PointsMaterial({size:0.045,vertexColors:true,transparent:true,opacity:0.9,depthWrite:false});
+  const points=new THREE.Points(geo,mat);
+  points.position.set(0,0.5,-9);
+  logoParticlesGroup.add(points);
+}
+const logoSourceImg = document.querySelector('nav .logo-img');
+if (logoSourceImg.complete && logoSourceImg.naturalWidth) {
+  buildLogoParticles(logoSourceImg);
+} else {
+  logoSourceImg.addEventListener('load', () => buildLogoParticles(logoSourceImg));
+}
+
 let mx=0,my=0,sy=0;
 window.addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
 window.addEventListener('scroll',()=>{sy=scrollY;});
@@ -439,6 +477,8 @@ const clock=new THREE.Clock();
     if(o.float)o.m.position.y+=Math.sin(t*o.fs+o.ft)*0.003;
   });
   particles.rotation.y=t*0.018;
+  logoParticlesGroup.rotation.y=Math.sin(t*0.15)*0.35;
+  logoParticlesGroup.position.y=Math.sin(t*0.4)*0.4;
   camera.position.x+=(mx*1.4-camera.position.x)*0.04;
   camera.position.y+=(-my*0.9-camera.position.y)*0.04;
   camera.position.z=18-sy*0.007;
